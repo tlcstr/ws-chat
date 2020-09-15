@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div id="chat"></div>
+    <input id="file" type="file" />
+    <input id="msg" type="text" />
+    <style>
+      #chat {
+        width: 300px;
+        margin-right: 0;
+      }
+      .message {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        position: relative;
+        margin: 12px;
+      }
+      input {
+        border: 1px solid green;
+        display: block;
+        margin: 12px;
+      }
+      .messageText {
+        display: inline-block;
+        margin: 0 0 0 10px;
+        top: 5px;
+        word-break: break-word;
+      }
+      img {
+        display: inline-block;
+        border-radius: 50%;
+      }
+    </style>
+    <script>
+      const CHAR_RETURN = 13;
+
+      const socket = new WebSocket('ws://127.0.0.1:8000/chat');
+      const chat = document.getElementById('chat');
+      const msg = document.getElementById('msg');
+      const file = document.getElementById('file');
+      let myAvatar;
+      file.focus();
+
+      const writeLine = (text, avatar) => {
+        const line = document.createElement('div');
+        line.className = 'message';
+        chat.appendChild(line);
+        if (avatar || myAvatar) {
+          if (avatar) {
+            const image = new Image();
+            image.src = avatar;
+            image.height = '35';
+            image.width = '35';
+            line.appendChild(image);
+          } else {
+            const image = document.createElement('img');
+            image.src = window.URL.createObjectURL(myAvatar);
+            image.height = '35';
+            image.width = '35';
+            line.appendChild(image);
+          }
+        }
+        const par = document.createElement('p');
+        par.textContent = text;
+        par.className = 'messageText';
+        if (text === 'connected' || text === 'closed') {
+          line.className = 'service';
+        }
+        line.appendChild(par);
+      };
+
+      socket.onopen = () => {
+        writeLine('connected');
+      };
+
+      socket.onclose = () => {
+        writeLine('closed');
+      };
+
+      socket.onmessage = event => {
+        const arr = event.data.split('123456789101112131415');
+        const message = arr[0];
+        const avatar = arr[1];
+        writeLine(message, avatar);
+      };
+
+      msg.addEventListener('keydown', event => {
+        if (event.keyCode === CHAR_RETURN) {
+          const s = msg.value;
+          msg.value = '';
+          writeLine(s);
+          socket.send(s);
+        }
+      });
+
+      file.addEventListener('change', event => {
+        const curFiles = event.target.files;
+        myAvatar = curFiles[0];
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          socket.send(reader.result);
+        };
+        reader.readAsDataURL(myAvatar);
+        file.remove();
+      });
+    </script>
+  </body>
+</html>
